@@ -11,25 +11,19 @@
         #auth-container { text-align: center; padding-top: 100px; height: 100vh; }
         .hidden { display: none !important; }
         .user-info { font-size: 0.8rem; margin-bottom: 15px; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; }
-        
-        /* Form Styling */
         .planner-form { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; align-items: end; border: 1px solid var(--border); }
         .input-group { display: flex; flex-direction: column; gap: 5px; }
         label { font-size: 0.75rem; color: #94a3b8; }
         input, select, .btn { background: #334155; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; font-size: 14px; }
-        .btn { cursor: pointer; font-weight: bold; border: none; transition: opacity 0.2s; }
-        .btn:hover { opacity: 0.9; }
+        .btn { cursor: pointer; font-weight: bold; border: none; }
         .btn-primary { background: var(--primary); }
         .btn-accent { background: #f59e0b; color: #000; margin-bottom: 20px; width: 100%; }
-
-        /* Calendar Styling */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
         .day-column { background: var(--card); border-radius: 8px; padding: 10px; min-height: 250px; border: 1px solid var(--border); }
         .day-header { text-align: center; font-weight: bold; padding-bottom: 8px; border-bottom: 2px solid var(--primary); margin-bottom: 10px; }
         .workout-card { background: #334155; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 0.8rem; position: relative; border-left: 4px solid var(--primary); }
         .workout-card.completed { border-left-color: var(--success); opacity: 0.5; text-decoration: line-through; }
-        .delete-btn { position: absolute; top: 5px; right: 5px; color: #ef4444; background: none; border: none; cursor: pointer; font-size: 14px; }
-
+        .delete-btn { position: absolute; top: 5px; right: 5px; color: #ef4444; background: none; border: none; cursor: pointer; }
         @media (max-width: 800px) { .calendar-grid { grid-template-columns: 1fr; } .planner-form { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -38,7 +32,7 @@
 <div id="auth-container">
     <h1>⚡ ProTrain Elite</h1>
     <p>Please sign in to access your training cloud.</p>
-    <button class="btn btn-primary" id="login-btn" style="padding: 15px 30px; font-size: 1.1rem;">Sign in with Google</button>
+    <button class="btn btn-primary" id="login-btn">Sign in with Google</button>
 </div>
 
 <div id="app-container" class="hidden">
@@ -47,33 +41,14 @@
             <span>👤 <span id="user-email"></span></span>
             <button id="logout-btn" class="btn" style="background:none; color:#ef4444; padding:0;">Logout</button>
         </div>
-
         <div class="planner-form">
-            <div class="input-group">
-                <label>Day</label>
-                <select id="day">
-                    <option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option>
-                    <option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option>
-                </select>
-            </div>
-            <div class="input-group">
-                <label>Sport</label>
-                <select id="sport">
-                    <option value="🏃 Run">Running</option><option value="🚴 Bike">Bike</option><option value="💪 Muscle">Musculation</option><option value="🧘 Core">Core</option>
-                </select>
-            </div>
-            <div class="input-group">
-                <label>Intensity/Details</label>
-                <input type="text" id="type" placeholder="e.g. HIIT / Zone 2">
-            </div>
-            <div class="input-group">
-                <label>Duration (Mins)</label>
-                <input type="number" id="duration" placeholder="60">
-            </div>
+            <div class="input-group"><label>Day</label><select id="day"><option value="0">Mon</option><option value="1">Tue</option><option value="2">Wed</option><option value="3">Thu</option><option value="4">Fri</option><option value="5">Sat</option><option value="6">Sun</option></select></div>
+            <div class="input-group"><label>Sport</label><select id="sport"><option value="🏃 Run">Run</option><option value="🚴 Bike">Bike</option><option value="💪 Muscle">Gym</option></select></div>
+            <div class="input-group"><label>Details</label><input type="text" id="type" placeholder="HIIT"></div>
+            <div class="input-group"><label>Mins</label><input type="number" id="duration" placeholder="60"></div>
             <button class="btn btn-primary" onclick="addWorkout()">Add Session</button>
         </div>
-
-        <button class="btn btn-accent" onclick="copyToNextWeek()">🔄 Copy Plan to Next Week</button>
+        <button class="btn btn-accent" onclick="copyToNextWeek()">🔄 Copy to Next Week</button>
         <div class="calendar-grid" id="calendar"></div>
     </div>
 </div>
@@ -89,8 +64,7 @@
         projectId: "training-app-99d94",
         storageBucket: "training-app-99d94.firebasestorage.app",
         messagingSenderId: "230722568164",
-        appId: "1:230722568164:web:842ee5a6ebcc6cc83211f1",
-        measurementId: "G-MTWKT6JZWX"
+        appId: "1:230722568164:web:842ee5a6ebcc6cc83211f1"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -98,24 +72,16 @@
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
 
-    let currentUser = null;
     let workouts = [];
+    let currentUser = null;
     let unsubscribe = null;
 
-    // --- AUTH LOGIC (Redirect Method) ---
-    const loginBtn = document.getElementById('login-btn');
-    if (loginBtn) {
-        loginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            console.log("Login sequence started...");
-            signInWithRedirect(auth, provider);
-        });
-    }
+    // Login logic
+    document.getElementById('login-btn').addEventListener('click', () => {
+        signInWithRedirect(auth, provider);
+    });
 
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => signOut(auth));
-    }
+    document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
     onAuthStateChanged(auth, (user) => {
         if (user) {
@@ -126,17 +92,73 @@
             startSync();
         } else {
             currentUser = null;
-            if (unsubscribe) unsubscribe();
             document.getElementById('auth-container').classList.remove('hidden');
             document.getElementById('app-container').classList.add('hidden');
         }
     });
 
-    // --- CLOUD DATA LOGIC ---
     function startSync() {
         const q = query(collection(db, "trainings"), where("userId", "==", currentUser.uid));
         unsubscribe = onSnapshot(q, (snapshot) => {
             workouts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             render();
-        }, (error) => {
-            console.error("Sync
+        });
+    }
+
+    window.addWorkout = async function() {
+        const type = document.getElementById('type').value;
+        const duration = document.getElementById('duration').value;
+        if(!type || !duration) return alert("Fill details!");
+        await addDoc(collection(db, "trainings"), {
+            userId: currentUser.uid,
+            day: parseInt(document.getElementById('day').value),
+            sport: document.getElementById('sport').value,
+            type, duration, completed: false, createdAt: Date.now()
+        });
+        document.getElementById('type').value = '';
+        document.getElementById('duration').value = '';
+    };
+
+    window.toggleComplete = async function(id) {
+        const w = workouts.find(i => i.id === id);
+        await updateDoc(doc(db, "trainings", id), { completed: !w.completed });
+    };
+
+    window.removeWorkout = async function(id) {
+        if(confirm("Delete?")) await deleteDoc(doc(db, "trainings", id));
+    };
+
+    window.copyToNextWeek = async function() {
+        if(!confirm("Copy plan?")) return;
+        const batch = writeBatch(db);
+        workouts.forEach(w => {
+            const newRef = doc(collection(db, "trainings"));
+            const {id, ...data} = w;
+            batch.set(newRef, { ...data, completed: false, createdAt: Date.now() });
+        });
+        await batch.commit();
+    };
+
+    function render() {
+        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        const calendar = document.getElementById('calendar');
+        calendar.innerHTML = '';
+        days.forEach((dayName, index) => {
+            const col = document.createElement('div');
+            col.className = 'day-column';
+            col.innerHTML = `<div class="day-header">${dayName}</div>`;
+            workouts.filter(w => w.day === index).sort((a,b) => a.createdAt - b.createdAt).forEach(w => {
+                const card = document.createElement('div');
+                card.className = `workout-card ${w.completed ? 'completed' : ''}`;
+                card.innerHTML = `<button class="delete-btn" onclick="removeWorkout('${w.id}')">✕</button>
+                    <div onclick="toggleComplete('${w.id}')" style="cursor:pointer">
+                        <b>${w.sport}</b><br>${w.type}<br><small>${w.duration}m</small>
+                    </div>`;
+                col.appendChild(card);
+            });
+            calendar.appendChild(col);
+        });
+    }
+</script>
+</body>
+</html>
