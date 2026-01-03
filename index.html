@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ProTrain | Private Cloud Sync</title>
+    <title>ProTrain | Elite Cloud Tracker</title>
     <style>
         :root { --primary: #3b82f6; --success: #10b981; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --border: #334155; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 10px; margin: 0; }
@@ -11,19 +11,24 @@
         #auth-container { text-align: center; padding-top: 100px; height: 100vh; }
         .hidden { display: none !important; }
         .user-info { font-size: 0.8rem; margin-bottom: 15px; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Form Styling */
         .planner-form { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; align-items: end; border: 1px solid var(--border); }
         .input-group { display: flex; flex-direction: column; gap: 5px; }
         label { font-size: 0.75rem; color: #94a3b8; }
         input, select, .btn { background: #334155; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; font-size: 14px; }
-        .btn { cursor: pointer; font-weight: bold; border: none; }
+        .btn { cursor: pointer; font-weight: bold; border: none; transition: opacity 0.2s; }
         .btn-primary { background: var(--primary); }
         .btn-accent { background: #f59e0b; color: #000; margin-bottom: 20px; width: 100%; }
+
+        /* Calendar Styling */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
         .day-column { background: var(--card); border-radius: 8px; padding: 10px; min-height: 250px; border: 1px solid var(--border); }
         .day-header { text-align: center; font-weight: bold; padding-bottom: 8px; border-bottom: 2px solid var(--primary); margin-bottom: 10px; }
         .workout-card { background: #334155; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 0.8rem; position: relative; border-left: 4px solid var(--primary); }
         .workout-card.completed { border-left-color: var(--success); opacity: 0.5; text-decoration: line-through; }
         .delete-btn { position: absolute; top: 5px; right: 5px; color: #ef4444; background: none; border: none; cursor: pointer; }
+
         @media (max-width: 800px) { .calendar-grid { grid-template-columns: 1fr; } .planner-form { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -32,7 +37,7 @@
 <div id="auth-container">
     <h1>⚡ ProTrain Elite</h1>
     <p>Please sign in to access your training cloud.</p>
-    <button class="btn btn-primary" id="login-btn">Sign in with Google</button>
+    <button class="btn btn-primary" id="login-btn" style="padding: 15px 30px; font-size: 1.1rem;">Sign in with Google</button>
 </div>
 
 <div id="app-container" class="hidden">
@@ -41,14 +46,33 @@
             <span>👤 <span id="user-email"></span></span>
             <button id="logout-btn" class="btn" style="background:none; color:#ef4444; padding:0;">Logout</button>
         </div>
+
         <div class="planner-form">
-            <div class="input-group"><label>Day</label><select id="day"><option value="0">Mon</option><option value="1">Tue</option><option value="2">Wed</option><option value="3">Thu</option><option value="4">Fri</option><option value="5">Sat</option><option value="6">Sun</option></select></div>
-            <div class="input-group"><label>Sport</label><select id="sport"><option value="🏃 Run">Run</option><option value="🚴 Bike">Bike</option><option value="💪 Muscle">Gym</option></select></div>
-            <div class="input-group"><label>Details</label><input type="text" id="type" placeholder="HIIT"></div>
-            <div class="input-group"><label>Mins</label><input type="number" id="duration" placeholder="60"></div>
+            <div class="input-group">
+                <label>Day</label>
+                <select id="day">
+                    <option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option>
+                    <option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Sport</label>
+                <select id="sport">
+                    <option value="🏃 Run">Running</option><option value="🚴 Bike">Bike</option><option value="💪 Muscle">Gym</option><option value="🧘 Core">Core</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Details</label>
+                <input type="text" id="type" placeholder="e.g. HIIT">
+            </div>
+            <div class="input-group">
+                <label>Mins</label>
+                <input type="number" id="duration" placeholder="60">
+            </div>
             <button class="btn btn-primary" onclick="addWorkout()">Add Session</button>
         </div>
-        <button class="btn btn-accent" onclick="copyToNextWeek()">🔄 Copy to Next Week</button>
+
+        <button class="btn btn-accent" onclick="copyToNextWeek()">🔄 Copy Plan to Next Week</button>
         <div class="calendar-grid" id="calendar"></div>
     </div>
 </div>
@@ -56,7 +80,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-    import { getAuth, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyB5BUiC-k9Is9C1ASkjE-M3QSoKS52YzhI",
@@ -67,48 +91,71 @@
         appId: "1:230722568164:web:842ee5a6ebcc6cc83211f1"
     };
 
+    // Initialize
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
 
-    let workouts = [];
     let currentUser = null;
+    let workouts = [];
     let unsubscribe = null;
 
-    // Login logic
-    document.getElementById('login-btn').addEventListener('click', () => {
+    // --- AUTH LOGIC ---
+    
+    // 1. Set Persistence so the login "sticks" across refreshes
+    setPersistence(auth, browserLocalPersistence);
+
+    // 2. Handle the result when returning from Google
+    getRedirectResult(auth).catch((error) => console.error("Redirect error:", error));
+
+    // 3. Button Click
+    document.getElementById('login-btn').addEventListener('click', (e) => {
+        e.preventDefault();
         signInWithRedirect(auth, provider);
     });
 
-    document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+    document.getElementById('logout-btn').addEventListener('click', () => {
+        signOut(auth).then(() => location.reload());
+    });
 
+    // 4. Watch for login state changes
     onAuthStateChanged(auth, (user) => {
+        const authCont = document.getElementById('auth-container');
+        const appCont = document.getElementById('app-container');
+        
         if (user) {
             currentUser = user;
-            document.getElementById('auth-container').classList.add('hidden');
-            document.getElementById('app-container').classList.remove('hidden');
+            authCont.classList.add('hidden');
+            appCont.classList.remove('hidden');
             document.getElementById('user-email').innerText = user.email;
             startSync();
         } else {
             currentUser = null;
-            document.getElementById('auth-container').classList.remove('hidden');
-            document.getElementById('app-container').classList.add('hidden');
+            if (unsubscribe) unsubscribe();
+            authCont.classList.remove('hidden');
+            appCont.classList.add('hidden');
         }
     });
 
+    // --- DATABASE SYNC ---
     function startSync() {
         const q = query(collection(db, "trainings"), where("userId", "==", currentUser.uid));
         unsubscribe = onSnapshot(q, (snapshot) => {
             workouts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             render();
+        }, (error) => {
+            console.error("Firebase Rule Error:", error);
+            alert("Database access denied. Check your Firebase Rules!");
         });
     }
 
+    // --- WORKOUT ACTIONS ---
     window.addWorkout = async function() {
         const type = document.getElementById('type').value;
         const duration = document.getElementById('duration').value;
-        if(!type || !duration) return alert("Fill details!");
+        if(!type || !duration) return alert("Fill in workout details!");
+
         await addDoc(collection(db, "trainings"), {
             userId: currentUser.uid,
             day: parseInt(document.getElementById('day').value),
@@ -125,11 +172,11 @@
     };
 
     window.removeWorkout = async function(id) {
-        if(confirm("Delete?")) await deleteDoc(doc(db, "trainings", id));
+        if(confirm("Delete session?")) await deleteDoc(doc(db, "trainings", id));
     };
 
     window.copyToNextWeek = async function() {
-        if(!confirm("Copy plan?")) return;
+        if(!confirm("Copy current week to next week?")) return;
         const batch = writeBatch(db);
         workouts.forEach(w => {
             const newRef = doc(collection(db, "trainings"));
@@ -137,22 +184,27 @@
             batch.set(newRef, { ...data, completed: false, createdAt: Date.now() });
         });
         await batch.commit();
+        alert("Plan copied!");
     };
 
+    // --- UI RENDER ---
     function render() {
         const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         const calendar = document.getElementById('calendar');
         calendar.innerHTML = '';
+
         days.forEach((dayName, index) => {
             const col = document.createElement('div');
             col.className = 'day-column';
             col.innerHTML = `<div class="day-header">${dayName}</div>`;
+
             workouts.filter(w => w.day === index).sort((a,b) => a.createdAt - b.createdAt).forEach(w => {
                 const card = document.createElement('div');
                 card.className = `workout-card ${w.completed ? 'completed' : ''}`;
-                card.innerHTML = `<button class="delete-btn" onclick="removeWorkout('${w.id}')">✕</button>
+                card.innerHTML = `
+                    <button class="delete-btn" onclick="removeWorkout('${w.id}')">✕</button>
                     <div onclick="toggleComplete('${w.id}')" style="cursor:pointer">
-                        <b>${w.sport}</b><br>${w.type}<br><small>${w.duration}m</small>
+                        <b style="color:var(--primary)">${w.sport}</b><br>${w.type}<br><small>${w.duration}m</small>
                     </div>`;
                 col.appendChild(card);
             });
