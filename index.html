@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProTrain | Private Cloud Sync</title>
+    <style>
+        /* ... (Keep your existing CSS here) ... */
+        #auth-container { text-align: center; margin-top: 50px; }
+        .hidden { display: none !important; }
+        .user-info { font-size: 0.8rem; margin-bottom: 10px; color: #94a3b8; }
+    </style>
+</head>
+<body>
+
+<div id="auth-container">
+    <h1>⚡ ProTrain Elite</h1>
+    <p>Please sign in to access your training cloud.</p>
+    <button class="btn btn-primary" id="login-btn">Sign in with Google</button>
+</div>
+
+<div id="app-container" class="hidden">
+    <div class="container">
+        <div class="user-info">Logged in as: <span id="user-email"></span> | <a href="#" id="logout-link" style="color: #ef4444">Logout</a></div>
+        <h1 style="text-align: center;">📅 Weekly Training Schedule</h1>
+        
+        <div class="planner-form">
+            <button class="btn btn-primary" id="add-btn">Add to Plan</button>
+        </div>
+        
+        <div class="toolbar">
+            <button class="btn btn-accent" id="copy-btn">🔄 Copy to Next Week</button>
+        </div>
+
+        <div class="calendar-grid" id="calendar"></div>
+    </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+  import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB5BUiC-k9Is9C1ASkjE-M3QSoKS52YzhI",
+  authDomain: "training-app-99d94.firebaseapp.com",
+  projectId: "training-app-99d94",
+  storageBucket: "training-app-99d94.firebasestorage.app",
+  messagingSenderId: "230722568164",
+  appId: "1:230722568164:web:842ee5a6ebcc6cc83211f1",
+  measurementId: "G-MTWKT6JZWX"
+};
+
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
+
+  let currentUser = null;
+  let workouts = [];
+  let unsubscribe = null;
+
+  // --- AUTH LOGIC ---
+  document.getElementById('login-btn').onclick = () => signInWithPopup(auth, provider);
+  document.getElementById('logout-link').onclick = () => signOut(auth);
+
+  onAuthStateChanged(auth, (user) => {
+      if (user) {
+          currentUser = user;
+          document.getElementById('auth-container').classList.add('hidden');
+          document.getElementById('app-container').classList.remove('hidden');
+          document.getElementById('user-email').innerText = user.email;
+          startSync();
+      } else {
+          currentUser = null;
+          if (unsubscribe) unsubscribe();
+          document.getElementById('auth-container').classList.remove('hidden');
+          document.getElementById('app-container').classList.add('hidden');
+      }
+  });
+
+  // --- DATABASE LOGIC ---
+  function startSync() {
+      // Only get workouts belonging to THIS user
+      const q = query(collection(db, "trainings"), where("userId", "==", currentUser.uid));
+      unsubscribe = onSnapshot(q, (snapshot) => {
+          workouts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          render();
+      });
+  }
+
+  window.addWorkout = async function() {
+      const day = parseInt(document.getElementById('day').value);
+      const sport = document.getElementById('sport').value;
+      const type = document.getElementById('type').value;
+      const duration = document.getElementById('duration').value;
+
+      await addDoc(collection(db, "trainings"), {
+          userId: currentUser.uid, // Tag with user ID
+          day, sport, type, duration, completed: false
+      });
+  };
+
+  // ... Add your toggleComplete, removeWorkout, and render functions here ...
+  // (Just ensure addDoc includes 'userId: currentUser.uid')
+</script>
+</body>
+</html>
