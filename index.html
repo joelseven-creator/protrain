@@ -108,34 +108,35 @@ import { getAuth, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, si
 // 2. THEN: Replace your AUTH section with this:
 
 // --- AUTH ---
-document.getElementById('login-btn').onclick = (e) => {
-    e.preventDefault();
-    console.log("Login button clicked!"); // Check your console for this
-    signInWithRedirect(auth, provider);
-};
+  // We use window.login so the HTML button can definitely "see" it
+  window.login = async () => {
+      console.log("Attempting Login...");
+      try {
+          // This will move the whole page to Google's login screen
+          await signInWithRedirect(auth, provider);
+      } catch (error) {
+          console.error("Login Error:", error);
+          alert("Login failed: " + error.message);
+      }
+  };
 
-document.getElementById('logout-btn').onclick = (e) => {
-    e.preventDefault();
-    signOut(auth);
-};
+  document.getElementById('login-btn').onclick = window.login;
+  document.getElementById('logout-btn').onclick = () => signOut(auth);
 
-onAuthStateChanged(auth, (user) => {
-    const authCont = document.getElementById('auth-container');
-    const appCont = document.getElementById('app-container');
-    
-    if (user) {
-        currentUser = user;
-        authCont.classList.add('hidden');
-        appCont.classList.remove('hidden');
-        document.getElementById('user-email').innerText = user.email;
-        startSync();
-    } else {
-        currentUser = null;
-        if (unsubscribe) unsubscribe();
-        authCont.classList.remove('hidden');
-        appCont.classList.add('hidden');
-    }
-});
+  onAuthStateChanged(auth, (user) => {
+      if (user) {
+          currentUser = user;
+          document.getElementById('auth-container').classList.add('hidden');
+          document.getElementById('app-container').classList.remove('hidden');
+          document.getElementById('user-email').innerText = user.email;
+          startSync();
+      } else {
+          currentUser = null;
+          if (unsubscribe) unsubscribe();
+          document.getElementById('auth-container').classList.remove('hidden');
+          document.getElementById('app-container').classList.add('hidden');
+      }
+  });
 
     // --- CLOUD LOGIC ---
     function startSync() {
