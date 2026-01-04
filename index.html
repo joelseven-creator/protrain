@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ProTrain | Elite Tracker</title>
+    <title>ProTrain | Elite Cloud Tracker</title>
     <style>
         :root { --primary: #3b82f6; --success: #10b981; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --border: #334155; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 10px; margin: 0; }
@@ -15,7 +15,7 @@
         .input-group { display: flex; flex-direction: column; gap: 5px; }
         label { font-size: 0.75rem; color: #94a3b8; }
         input, select, .btn { background: #334155; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 6px; font-size: 14px; }
-        .btn { cursor: pointer; font-weight: bold; border: none; }
+        .btn { cursor: pointer; font-weight: bold; border: none; transition: 0.2s; }
         .btn-primary { background: var(--primary); }
         .btn-accent { background: #f59e0b; color: #000; margin-bottom: 20px; width: 100%; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
@@ -31,24 +31,24 @@
 
 <div id="auth-container">
     <h1>⚡ ProTrain Elite</h1>
-    <p>Please sign in to access your training cloud.</p>
-    <button class="btn btn-primary" id="login-btn" style="padding: 15px 30px; font-size: 1.1rem;">Sign in with Google</button>
+    <p>Connectez-vous pour accéder à votre cloud d'entraînement.</p>
+    <button class="btn btn-primary" id="login-btn" style="padding: 15px 30px; font-size: 1.1rem;">Se connecter avec Google</button>
 </div>
 
 <div id="app-container" class="hidden">
     <div class="container">
         <div class="user-info">
             <span>👤 <span id="user-email"></span></span>
-            <button id="logout-btn" class="btn" style="background:none; color:#ef4444; padding:0;">Logout</button>
+            <button id="logout-btn" class="btn" style="background:none; color:#ef4444; padding:0;">Déconnexion</button>
         </div>
         <div class="planner-form">
-            <div class="input-group"><label>Day</label><select id="day"><option value="0">Mon</option><option value="1">Tue</option><option value="2">Wed</option><option value="3">Thu</option><option value="4">Fri</option><option value="5">Sat</option><option value="6">Sun</option></select></div>
-            <div class="input-group"><label>Sport</label><select id="sport"><option value="🏃 Run">Run</option><option value="🚴 Bike">Bike</option><option value="💪 Gym">Gym</option><option value="🧘 Core">Core</option></select></div>
-            <div class="input-group"><label>Details</label><input type="text" id="type" placeholder="e.g. HIIT"></div>
-            <div class="input-group"><label>Mins</label><input type="number" id="duration" placeholder="60"></div>
-            <button class="btn btn-primary" onclick="addWorkout()">Add Session</button>
+            <div class="input-group"><label>Jour</label><select id="day"><option value="0">Lun</option><option value="1">Mar</option><option value="2">Mer</option><option value="3">Jeu</option><option value="4">Ven</option><option value="5">Sam</option><option value="6">Dim</option></select></div>
+            <div class="input-group"><label>Sport</label><select id="sport"><option value="🏃 Run">Course</option><option value="🚴 Bike">Vélo</option><option value="💪 Gym">Muscu</option><option value="🧘 Core">Gainage</option></select></div>
+            <div class="input-group"><label>Détails</label><input type="text" id="type" placeholder="ex: HIIT"></div>
+            <div class="input-group"><label>Durée (min)</label><input type="number" id="duration" placeholder="60"></div>
+            <button class="btn btn-primary" id="add-btn">Ajouter</button>
         </div>
-        <button class="btn btn-accent" onclick="copyToNextWeek()">🔄 Copy Plan to Next Week</button>
+        <button class="btn btn-accent" id="copy-btn">🔄 Copier le plan vers la semaine suivante</button>
         <div class="calendar-grid" id="calendar"></div>
     </div>
 </div>
@@ -68,113 +68,17 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
     const auth = getAuth(app);
+    const db = getFirestore(app);
     const provider = new GoogleAuthProvider();
 
     let workouts = [];
     let currentUser = null;
     let unsubscribe = null;
 
-    // FORCE SESSION PERSISTENCE
+    // 1. Persistance et gestion du retour Google
     setPersistence(auth, browserLocalPersistence);
+    getRedirectResult(auth).catch(err => console.error("Erreur redirection:", err));
 
-    // HANDLE THE RETURN FROM GOOGLE
-    getRedirectResult(auth).then((result) => {
-        if (result?.user) console.log("Successful redirect login!");
-    }).catch((error) => console.error("Redirect Result Error:", error));
-
-    document.getElementById('login-btn').addEventListener('click', (e) => {
-        e.preventDefault();
-        signInWithRedirect(auth, provider);
-    });
-
-    document.getElementById('logout-btn').addEventListener('click', () => {
-        signOut(auth).then(() => location.reload());
-    });
-
-    onAuthStateChanged(auth, (user) => {
-        const authCont = document.getElementById('auth-container');
-        const appCont = document.getElementById('app-container');
-        if (user) {
-            currentUser = user;
-            authCont.classList.add('hidden');
-            appCont.classList.remove('hidden');
-            document.getElementById('user-email').innerText = user.email;
-            startSync();
-        } else {
-            currentUser = null;
-            if (unsubscribe) unsubscribe();
-            authCont.classList.remove('hidden');
-            appCont.classList.add('hidden');
-        }
-    });
-
-    function startSync() {
-        const q = query(collection(db, "trainings"), where("userId", "==", currentUser.uid));
-        unsubscribe = onSnapshot(q, (snapshot) => {
-            workouts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            render();
-        }, (err) => {
-            console.error("Firestore error:", err);
-            if(err.code === 'permission-denied') alert("Check your Firebase Database Rules!");
-        });
-    }
-
-    window.addWorkout = async function() {
-        const type = document.getElementById('type').value;
-        const duration = document.getElementById('duration').value;
-        if(!type || !duration) return alert("Fill details!");
-        await addDoc(collection(db, "trainings"), {
-            userId: currentUser.uid,
-            day: parseInt(document.getElementById('day').value),
-            sport: document.getElementById('sport').value,
-            type, duration, completed: false, createdAt: Date.now()
-        });
-        document.getElementById('type').value = '';
-        document.getElementById('duration').value = '';
-    };
-
-    window.toggleComplete = async function(id) {
-        const w = workouts.find(i => i.id === id);
-        await updateDoc(doc(db, "trainings", id), { completed: !w.completed });
-    };
-
-    window.removeWorkout = async function(id) {
-        if(confirm("Delete?")) await deleteDoc(doc(db, "trainings", id));
-    };
-
-    window.copyToNextWeek = async function() {
-        if(!confirm("Copy current week?")) return;
-        const batch = writeBatch(db);
-        workouts.forEach(w => {
-            const newRef = doc(collection(db, "trainings"));
-            const {id, ...data} = w;
-            batch.set(newRef, { ...data, completed: false, createdAt: Date.now() });
-        });
-        await batch.commit();
-    };
-
-    function render() {
-        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-        const calendar = document.getElementById('calendar');
-        calendar.innerHTML = '';
-        days.forEach((dayName, index) => {
-            const col = document.createElement('div');
-            col.className = 'day-column';
-            col.innerHTML = `<div class="day-header">${dayName}</div>`;
-            workouts.filter(w => w.day === index).sort((a,b) => a.createdAt - b.createdAt).forEach(w => {
-                const card = document.createElement('div');
-                card.className = `workout-card ${w.completed ? 'completed' : ''}`;
-                card.innerHTML = `<button class="delete-btn" onclick="removeWorkout('${w.id}')">✕</button>
-                    <div onclick="toggleComplete('${w.id}')" style="cursor:pointer">
-                        <b>${w.sport}</b><br>${w.type}<br><small>${w.duration}m</small>
-                    </div>`;
-                col.appendChild(card);
-            });
-            calendar.appendChild(col);
-        });
-    }
-</script>
-</body>
-</html>
+    // 2. Événements de connexion
+    document
